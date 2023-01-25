@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AssemblyGauss": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
