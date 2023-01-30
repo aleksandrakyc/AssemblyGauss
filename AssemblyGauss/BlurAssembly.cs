@@ -15,14 +15,15 @@ namespace AssemblyGauss
         [DllImport(@"D:\Coding\AssemblyGauss\x64\Debug\GaussDll.dll")]
         private static extern void gaussianBlur(byte[] input, int size, int width, int start, int end);
 
-        public override void Blur(float[] pixels, float[] output, double[,] kernel)
+        public override void Blur(float[] pixels, ref float[] output, double[,] kernel)
         {
             
             byte[] bytes = output.ToByteArray();
-            int size = imageHeight * imageWidth;
-            gaussianBlur(bytes, size, imageWidth, startIndex+1,endIndex-1);
-            pixels = bytes.ToFloatArray();
-            
+            byte[] bytes2 = output.ToByteArray();
+            int size = imageHeight * imageWidth/4;
+            gaussianBlur(bytes, size, imageWidth, startIndex,endIndex-1);
+            output = bytes.ToFloatArray();
+            bool x = pixels == output;
         }
     }
 }

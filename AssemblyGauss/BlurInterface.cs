@@ -24,6 +24,6 @@ namespace AssemblyGauss
 
         }
         //method executing effect
-        public abstract void Blur(float[] pixels, float[] output, double[,] kernel);
+        public abstract void Blur(float[] pixels, ref float[] output, double[,] kernel);
     }
 }

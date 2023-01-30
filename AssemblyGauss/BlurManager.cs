@@ -33,18 +33,21 @@ namespace AssemblyGauss
             for(int i = 0; i<numberOfThreads; i++)
             {
                 int partNum = i;
-                int pieceEnd = (partNum + 1) * onePiece - 1;
+                int pieceBegin = partNum * onePiece;
+                int pieceEnd = (partNum + 1) * onePiece;
                 if (partNum + 1 == numberOfThreads)
-                    pieceEnd = oldBitmap.PixelHeight;
+                    pieceEnd = oldBitmap.PixelHeight-1;
+                if (partNum == 0)
+                    pieceBegin = 1;
 
                 blurInterfaces.Add(BlurFactory.Create(
                 type,
                 oldBitmap.PixelWidth,
                 oldBitmap.PixelHeight,
-                partNum*onePiece,
+                pieceBegin,
                 pieceEnd
                 ));
-                tasks.Add(new Task(() => blurInterfaces[partNum].Blur(allPixels, output, kernel)));
+                tasks.Add(new Task(() => blurInterfaces[partNum].Blur(allPixels, ref output, kernel)));
             }
         }
         private int countPiece(int numberOfThreads, int height, int width)

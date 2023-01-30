@@ -1,148 +1,49 @@
 .data
 kernel: 
-word 1
-word 1
-word 1
-word 2
-word 2
-word 2
-word 1
-word 1
-word 1
-word 2
-word 2
-word 2
-word 4
-word 4
-word 4
-word 2
-word 2
-word 2
-word 1
-word 1
-word 1
-word 2
-word 2
-word 2
-word 1
-word 1
-word 1
+oword 0
 
 .code
 
-;params: bmap data - rcx, bmap size - rdx, bmap width - r8, start index - r9, end index - stack/r10
+;params: bmap data - rcx, bmap size - rdx, bmap width - r8, start index - r9, end index - stack
+;r10 - loopcounter
+
 gaussianBlur proc EXPORT
 
-;get weights
-movdqu xmm0, oword ptr[kernel]
-movdqu xmm1, oword ptr[kernel + 6]
-movdqu xmm2, oword ptr[kernel + 12]
-movdqu xmm3, oword ptr[kernel + 18]
-movdqu xmm4, oword ptr[kernel + 24]
-movdqu xmm5, oword ptr[kernel + 30]
+mov				ebx, dword ptr[rbp + 48]	;move start index from stack (cannot move to r10 directly because of size mismatch)
+mov				r10, rbx					;move start index(row) to r10
+;mov				rax, r8
+;mul				r10							;multiply end row index by image width - number of pixels
+;mov				r10, rax		
+sub				r10, r9						;loop counter - number of pixels to change
+add				rcx, r9						;counter starts at bmap beginning+start index
+;add				rdx, rcx					;rdx holds the end - unnecessary?
 
-;registers:
-;r11 
-;rdi szerokosc bmp * 4
-;r12 end index  -to revise
+imageLoop:
 
-xor r10, r10
-mov ebx, dword ptr[rbp+48] 
-mov r10, rbx ;end index
-mov r15, rcx ;pointer to bmap
-mov rax, r8	 ;width
-imul rax, 4	 ;RGBA parts
-mov rdi, rax ;rdi width multiplied by 4
-imul rax, r9 ;start index*width - first row
-mov rcx, rax ;rcx - counter
-mov rax, rdi 
-imul rax, r10 ;end index*width - last row
-mov r12, rax ;r12 - end
-sub r10, r9
-shr r10, 2 
+cmp				rdx, 0h						;if we reach end of bmap, end proc
+je				endBlur
 
-;check if top left out of bounds
-loop1:
-add rcx, 4 
-mov rax, rcx
-sub rax, rdi
-sub rax, 4 
-cmp rax, 0
-jl loop1
+pmovzxbw		xmm1, [rcx]					;put hopefully pixel values to xmm
+pmovzxbw		xmm2, [rcx+8]
+;movdqu			xmm1, oword ptr[rcx]		;cant multiply bytes?
+movdqu			xmm0, oword ptr[kernel]		;get out 0s ready
+pmulhw			xmm1, xmm0					;multiply by 0?
+pmulhw			xmm2, xmm0					;multiply by 0?
 
-;check if bottom right out of bounds
-mov rax, rcx
-add rax, rdi
-add rax, 4 
-cmp rax, rdx 
-jae endBlur 
+xorps			xmm3, xmm3					;need to clear the register to make operations on it?
+xorps			xmm4, xmm4
+PACKUSWB 		xmm3, xmm1					;returns bytes to their previous form
+PACKUSWB 		xmm4, xmm2
+MOVHLPS			xmm4, xmm3					;now our hopefully processed bytes are back in their byte form.
 
-;setting registers
-mov rax, r15
-add rax, rcx ;counter+pointer to begining of gmap
-sub rax, rdi ;row abowe
-sub rax, 4 ;top left corner
-pmovzxbw xmm6, [rax] 
-add rax, 4 ;1 pixel right
-pmovzxbw xmm7, [rax]
-add rax, 4
-pmovzxbw xmm8, [rax]
-add rax, rdi ;row below
-pmovzxbw xmm9, [rax]
-sub rax, 4
-pmovzxbw xmm10, [rax]
-sub rax, 4
-pmovzxbw xmm11, [rax]
-add rax, rdi
-pmovzxbw xmm12, [rax]
-add rax, 4
-pmovzxbw xmm13, [rax]
-add rax, 4
-pmovzxbw xmm14, [rax]
+MOVDQU			oword ptr [rcx], xmm4		;;-;
 
-;multiply by weights
-pmullw xmm6, xmm0
-pmullw xmm7, xmm1
-pmullw xmm8, xmm2
-pmullw xmm9, xmm3
-pmullw xmm10, xmm4
-pmullw xmm11, xmm5
-pmullw xmm12, xmm0
-pmullw xmm13, xmm1
-pmullw xmm14, xmm2
-
-;sum pixels
-paddw xmm6, xmm7
-paddw xmm6, xmm8
-paddw xmm6, xmm9
-paddw xmm6, xmm10
-paddw xmm6, xmm11
-paddw xmm6, xmm12
-paddw xmm6, xmm13
-paddw xmm6, xmm14
-
-;alpha?
-
-psrlw xmm6, 4 ;divide by weights sum
-pextrw r9, xmm6, 0 ;red
-pextrw r13, xmm6, 1 ;green
-pextrw r14, xmm6, 2 ;blue
-
-mov r11, r15 ;start of bmap
-add r11, rcx ;kernel center
-
-;jmp endblur
-
-pextrb byte ptr [r11+0], xmm6, 0		
-pextrb byte ptr [r11+1], xmm6, 1		
-pextrb byte ptr [r11+2], xmm6, 2
-
-cmp rcx, r12 ;sprawdz czy licznik osiagnal punkt koncowy algorytmu
-jae endBlur
-jmp loop1
+add				rcx, 16						;move forward
+sub				rdx, 1						;we worked on 2 pix
+jmp				imageLoop				
 
 endBlur:
-ret
+ ret
 
 gaussianBlur endp
 end

@@ -44,14 +44,10 @@ namespace AssemblyGauss
             int stride = _imageWidth * magic; // ilość pixeli w rzędzie
             double[] rgb = new double[3]; // tablica trójki RGB
             int kernelBorder = (_kernel.GetLength(0) - 1) / 2; // liczba pixeli od środka jądra do jego granicy
-
-            if(endIndex == _imageHeight)
+  
+            for (int y = _startIndex; y < _endIndex; y++) //Iterowanie po wysokosci obrazu
             {
-                endIndex-=kernelBorder;
-            }
-            for (int y = _startIndex+1; y < endIndex; y++) //Iterowanie po wysokosci obrazu
-            {
-                for (int x = 1; x < imageWidth - kernelBorder; x++) //Iterowanie po szerokości obrazu
+                for (int x = kernelBorder; x < imageWidth - kernelBorder; x++) //Iterowanie po szerokości obrazu
                 {
                     rgb[0] = 0.0; //zerowanie wartości tablicy
                     rgb[1] = 0.0;
@@ -76,7 +72,7 @@ namespace AssemblyGauss
 
 
         }
-        public override void Blur(float[] pixels, float[] output, double[,] kernel)
+        public override void Blur(float[] pixels, ref float[] output, double[,] kernel)
         {
             
             gaussianBlurCS(pixels, output, imageWidth, imageHeight, startIndex, endIndex, kernel);
