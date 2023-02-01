@@ -13,17 +13,42 @@ namespace AssemblyGauss
         {
         }
         [DllImport(@"D:\Coding\AssemblyGauss\x64\Debug\GaussDll.dll")]
-        private static extern void gaussianBlur(byte[] input, int size, int width, int start, int end);
+        private static extern void gaussianBlur(float[] input, float[] kernel, int width, int start, int end);
 
         public override void Blur(float[] pixels, ref float[] output, double[,] kernel)
         {
+
+            //byte[] bytes = output.ToByteArray();
+            //byte[] bytes2 = output.ToByteArray();
+            //int size = imageHeight * imageWidth/4;
+
+            var asmKernel = this.To1DArray(kernel);
+
+            gaussianBlur(output, asmKernel, imageWidth, startIndex,endIndex);
             
-            byte[] bytes = output.ToByteArray();
-            byte[] bytes2 = output.ToByteArray();
-            int size = imageHeight * imageWidth/4;
-            gaussianBlur(bytes, size, imageWidth, startIndex,endIndex-1);
-            output = bytes.ToFloatArray();
             bool x = pixels == output;
+        }
+
+        float[] To1DArray(double[,] input)
+        {
+            // Step 1: get total size of 2D array, and allocate 1D array.
+            float[] result = new float[12];
+
+            float corner = (float)input[0, 0];
+            float side = (float)input[1, 0];
+            float center = (float)input[1, 1];
+
+            
+            // Step 2: copy 2D array elements into a 1D array.
+            
+            for (int i = 0; i < 4; i++)
+            {
+                result[i] = corner;
+                result[i+4] = side;
+                result[i+8] = center;
+            }
+            // Step 3: return the new array.
+            return result;
         }
     }
 }

@@ -4,46 +4,110 @@ oword 0
 
 .code
 
-;params: bmap data - rcx, bmap size - rdx, bmap width - r8, start index - r9, end index - stack
+;params: bmap data - rcx, kernel - rdx, bmap width - r8, start index - r9, end index - stack
 ;r10 - loopcounter
+
+;1pixel=16
 
 gaussianBlur proc EXPORT
 
+mov				r12, rdx
 mov				ebx, dword ptr[rbp + 48]	;move start index from stack (cannot move to r10 directly because of size mismatch)
 mov				r10, rbx					;move start index(row) to r10
-;mov				rax, r8
-;mul				r10							;multiply end row index by image width - number of pixels
-;mov				r10, rax		
-sub				r10, r9						;loop counter - number of pixels to change
-add				rcx, r9						;counter starts at bmap beginning+start index
-;add				rdx, rcx					;rdx holds the end - unnecessary?
 
-imageLoop:
+;mul r8 by bytes in pixel
+mov				rax, 16
+mul				r8
+mov				r8, rax
 
-cmp				rdx, 0h						;if we reach end of bmap, end proc
-je				endBlur
+sub				r10, 1
+mov				rax, r8						
+mul				r10
+mov				r10, rax					;loop counter - number of ROWS to change
+add				r10, rcx					;last pixel
 
-pmovzxbw		xmm1, [rcx]					;put hopefully pixel values to xmm
-pmovzxbw		xmm2, [rcx+8]
-;movdqu			xmm1, oword ptr[rcx]		;cant multiply bytes?
-movdqu			xmm0, oword ptr[kernel]		;get out 0s ready
-pmulhw			xmm1, xmm0					;multiply by 0?
-pmulhw			xmm2, xmm0					;multiply by 0?
+mov				rax, r8						;width
+mul				r9
+mov				r9, rax
+add				rcx, r9						;start at starty*beginning of map
 
-xorps			xmm3, xmm3					;need to clear the register to make operations on it?
-xorps			xmm4, xmm4
-PACKUSWB 		xmm3, xmm1					;returns bytes to their previous form
-PACKUSWB 		xmm4, xmm2
-MOVHLPS			xmm4, xmm3					;now our hopefully processed bytes are back in their byte form.
+mov				r11, r8
+sub				r11, 32						;hold imagewidth-2 : -1 pixel from both sides
 
-MOVDQU			oword ptr [rcx], xmm4		;;-;
+;get kernel - make the placement make sense
+movdqu			xmm10, oword ptr [r12]		;corner val
+movdqu			xmm11, oword ptr [r12+16]	;side val
+movdqu			xmm12, oword ptr [r12+32]	;center val
 
-add				rcx, 16						;move forward
-sub				rdx, 1						;we worked on 2 pix
-jmp				imageLoop				
+incX:
+sub				r11, 16
+cmp				r11, 0h						;we reach end of line
+je				incY						;if we do, skip those edge pixels
+add				rcx, 16						;if not, continue as normal
+
+;actual gauss:
+
+movdqu			xmm1, oword ptr [rcx]		;put hopefully pixel values to xmm
+add				rcx, 16
+movdqu			xmm2, oword ptr [rcx]
+add				rcx, r8
+movdqu			xmm3, oword ptr [rcx]
+sub				rcx, 16
+movdqu			xmm4, oword ptr [rcx]
+sub				rcx, 16
+movdqu			xmm5, oword ptr [rcx]
+sub				rcx, r8
+movdqu			xmm6, oword ptr [rcx]
+sub				rcx, r8
+movdqu			xmm7, oword ptr [rcx]		
+add				rcx, 16
+movdqu			xmm8, oword ptr [rcx]		
+add				rcx, 16
+movdqu			xmm9, oword ptr [rcx]
+add				rcx, r8
+sub				rcx, 16
+;movdqu			xmm10, oword ptr [rcx]		;test if were back home
+
+;multiply by weights
+
+;center pixel
+mulps			xmm1, xmm12
+;side pixels
+mulps			xmm2, xmm11
+mulps			xmm4, xmm11
+mulps			xmm6, xmm11
+mulps			xmm8, xmm11
+;corner pixels
+mulps			xmm3, xmm10
+mulps			xmm5, xmm10
+mulps			xmm7, xmm10
+mulps			xmm9, xmm10
+
+;add them up
+addps			xmm8, xmm9
+addps			xmm7, xmm8
+addps			xmm6, xmm7
+addps			xmm5, xmm6
+addps			xmm4, xmm5
+addps			xmm3, xmm4
+addps			xmm2, xmm3
+addps			xmm1, xmm2
+
+MOVDQU			xmm13, xmm1					;see final values	
+MOVDQU			[rcx], xmm1
+
+jmp				incX				
 
 endBlur:
- ret
+ret
+
+incY:
+mov				r11, r8
+sub				r11, 32						;hold imagewidth-2 : -1 from both sides
+add				rcx, 48						;skip 3 pix - first iteration fd up
+cmp				r10, rcx
+jl				endblur
+jmp				incX
 
 gaussianBlur endp
 end
